@@ -1,6 +1,9 @@
 from typing import Optional, TypedDict
 import numpy as np
 import gymnasium as gym
+import random
+
+from snake import Snake
 
 
 class RewardDict(TypedDict):
@@ -10,26 +13,47 @@ class RewardDict(TypedDict):
 
 class Slitherin(gym.Env):
 
-    def __init__(self, render_mode: Optional[str] = None, 
-                 grid_size: Optional[tuple] = (5, 5), 
-                 rewards: Optional[RewardDict] = {"win": 1, "idle": 0, "lose": -1}):
+    def __init__(
+            self, 
+            render_mode: Optional[str] = None, 
+            grid_size: Optional[tuple] = (5, 5), # min is (4, 4)
+            rewards: Optional[RewardDict] = {"win": 1, "idle": 0, "lose": -1},
+            num_agents: Optional[int] = 2
+        ):
         
         # The size of the square grid
         self.grid_size = grid_size
 
-        # Define Snake and Apple position
-        self.snake = np.array([[0, 0]])
-        self.apple = np.array([0, 0])
+        # Define Snakes
+        self.snakes = [
+            Snake(
+                start_pos=(random.randint(0, grid_size[0] - 2), random.randint(0, grid_size[1] - 2)),
+                starting_direction=random.randint(0, 3),  # 0=right, 1=up, 2=left, 3=down
+                color=random.randint(0, 5)
+            )
+            for _ in range(num_agents)
+        ]
+
+        # TODO: Define first apple
+
+        self.apple = np.array()
 
         # Define reward
         self.rewards = rewards
 
-        # The observation is a dict of the postions' of the snake and apple (x, y), (x, y)
-        self.observation_space = gym.spaces.Dict(
-            {
-                "snake": gym.spaces.Box(low=0, high=max(self.grid_size), shape=(2,), dtype=np.int32),
-                "apple": gym.spaces.Box(low=0, high=max(self.grid_size), shape=(2,), dtype=np.int32),
-            }
+        # The observation is a a box where
+        # 0 = nothing
+        # 1 = OWN snake body
+        # -1 = OTHER snake body
+        # 2 = OWN Snake head
+        # -2 = OTHER snake head
+        # 3 = Apple
+        # -3 = Wall
+        self.observation_space = gym.spaces.Box(
+            low=-3,
+            high=3,
+            shape=grid_size,
+            dtype=np.float32
         )
 
         # We have 4 actions, corresponding to "right", "up", "left", "down"
@@ -45,6 +69,28 @@ class Slitherin(gym.Env):
 
         # Define direction
         self.direction = self._action_to_direction[0] 
+    
+    def _get_occupied_postions(self):
+        _occupied_positions = set()
+
+        # Snake bodies
+        for _snake in self.snakes:
+            for _segment in _snake.body:
+                _occupied_positions.add(_segment)
+
+        # Walls
+        for x in range(-1, self.grid_size[0] + 1):
+            _occupied_positions.add((x, -1))
+            _occupied_positions.add((x, self.grid_size[1]))
+        for y in range(-1, self.grid_size[1] + 1):
+            _occupied_positions.add((-1, y))
+            _occupied_positions.add((self.grid_size[0], y))
+
+        return _occupied_positions
+    
+    # TODO: Generate apple func
+    def _spawn_apple(self):
+        pass
 
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
         # We need the following line to seed self.np_random
