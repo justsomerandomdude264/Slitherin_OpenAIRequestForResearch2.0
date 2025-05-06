@@ -24,6 +24,9 @@ class Slitherin(gym.Env):
         # The size of the square grid
         self.grid_size = grid_size
 
+        # Number of agents
+        self.num_agents = num_agents
+
         # Define Snakes
         self.snakes = [
             Snake(
@@ -34,12 +37,16 @@ class Slitherin(gym.Env):
             for _ in range(num_agents)
         ]
 
-        # TODO: Define first apple
+        # Define first apple
+        self._spawn_apple()
 
         self.apple = np.array()
 
         # Define reward
         self.rewards = rewards
+
+        # We have 4 actions, corresponding to "right", "up", "left", "down"
+        self.action_space = gym.spaces.Discrete(4)
 
         # The observation is a a box where
         # 0 = nothing
@@ -48,7 +55,7 @@ class Slitherin(gym.Env):
         # 2 = OWN Snake head
         # -2 = OTHER snake head
         # 3 = Apple
-        # -3 = Wall
+        # -3 = Wall (does not appear but reserved)
         self.observation_space = gym.spaces.Box(
             low=-3,
             high=3,
@@ -56,19 +63,27 @@ class Slitherin(gym.Env):
             dtype=np.float32
         )
 
-        # We have 4 actions, corresponding to "right", "up", "left", "down"
-        self.action_space = gym.spaces.Discrete(4)
 
-        # Dictionary maps the abstract actions to the directions on the grid
-        self._action_to_direction = {
-            0: np.array([1, 0]),  # right
-            1: np.array([0, 1]),  # up
-            2: np.array([-1, 0]),  # left
-            3: np.array([0, -1]),  # down
-        }
+    def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
+        # We need the following line to seed self.np_random
+        super().reset(seed=seed)
 
-        # Define direction
-        self.direction = self._action_to_direction[0] 
+        # Reset the snakes and apple positions
+        self.snakes = [
+            Snake(
+                start_pos=(random.randint(0, self.grid_size[0] - 2), random.randint(0, self.grid_size[1] - 2)),
+                starting_direction=random.randint(0, 3),  # 0=right, 1=up, 2=left, 3=down
+                color=random.randint(0, 5)
+            )
+            for _ in range(self.num_agents)
+        ]
+        self._spawn_apple()
+
+        # Get observation
+        observation = self._get_obs()
+
+        return observation
+
     
     def _get_occupied_postions(self):
         _occupied_positions = set()
@@ -88,35 +103,40 @@ class Slitherin(gym.Env):
 
         return _occupied_positions
     
-    # TODO: Generate apple func
     def _spawn_apple(self):
-        pass
+        # Get all the available positions by removing the occupied ones
+        _all_available_positions = [
+            (x, y)
+            for x in range(self.grid_size[0])
+            for y in range(self.grid_size[1])
+            if (x, y) not in self._get_occupied_postions()
+        ]
 
-    def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
-        # We need the following line to seed self.np_random
-        super().reset(seed=seed)
-
-        # Reset the snake and apple positions
-        self.snake = np.array([[0, 0]])
-        self.apple = np.array([0, 0])
-
-        # Reset direction and done
-        self.direction = self._action_to_direction[0]
-        self.done = False
-
-        # Get observation
-        observation = self._get_obs()
-
-        return observation
-
+        if _all_available_positions:
+            # Choose one positions from all available ones
+            self.apple = np.array(random.choice(_all_available_positions))
+        else:  
+            # If no space is left
+            self.apple = None
 
     def _get_obs(self):
-        head_y, head_x = self.snake[0]
-        apple_y, apple_x = self.food
-        return {
-            "snake": np.array([head_y, head_x], dtype=np.int32),
-            "apple": np.array([apple_y, apple_x], dtype=np.int32),
-        }
+        obs = np.zeros(self.grid_size, dtype=np.float32)
+
+        for i, snake in enumerate(self.snakes):
+            for j, segment in enumerate(snake.body):
+                y, x = segment
+                if 0 <= y < self.grid_size[0] and 0 <= x < self.grid_size[1]:
+                    if i == 0:
+                        obs[y, x] = 2 if j == 0 else 1  # Own head/body
+                    else:
+                        obs[y, x] = -2 if j == 0 else -1  # Other snakes
+
+        # Place the apple
+        apple_y, apple_x = self.apple
+        if 0 <= apple_y < self.grid_size[0] and 0 <= apple_x < self.grid_size[1]:
+            obs[apple_y, apple_x] = 3
+
+        return obs
     
     def _get_info(self):
          return {
