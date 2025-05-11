@@ -23,10 +23,10 @@ def print_observations(observations):
 def main():
     # Create environment with 3 agents
     env = Slitherin(
-        grid_size=(8, 8),
+        grid_size=(5, 5),
         rewards={"win": 10, "idle": -0.1, "lose": -10},
-        num_agents=3,
-        render_mode="human"  # Set to "human" for visualization, None for faster execution
+        num_agents=5,
+        render_mode="human"  
     )
     
     # Set seed for reproducibility
@@ -70,7 +70,10 @@ def main():
             for agent_id in env.possible_agents:
                 if agent_id in infos:
                     snake_status = "ALIVE" if not infos[agent_id].get('is_dead', False) else "DEAD"
-                    print(f"{agent_id}: {snake_status}")
+                    snake_score = infos[agent_id].get('snake_score')
+                    print(f"{agent_id}: {snake_status}, {snake_score}")
+
+            
             
             # Render the environment
             env.render()
