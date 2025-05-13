@@ -6,9 +6,9 @@ from slitherin import Slitherin
 def main():
     # Create environment with 3 agents
     env = Slitherin(
-        grid_size=(25, 25),
+        grid_size=(10, 10),
         rewards={"win": 10, "idle": -0.1, "lose": -10},
-        num_agents=3,
+        num_agents=5,
         render_mode="human"  
     )
     
@@ -16,7 +16,7 @@ def main():
     seed = 42
     
     # Initialize environment
-    observations, infos = env.reset(seed=seed)
+    observations, infos = env.reset()
     
     # Print initial state
     print(f"Number of agents: {len(env.agents)}")

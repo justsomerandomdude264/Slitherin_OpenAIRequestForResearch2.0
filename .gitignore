@@ -4,3 +4,6 @@ venv
 # Ignore the python's cache
 **/__pycache__/**
 **/__pycache__/
+
+# Ignore the model files
+models
